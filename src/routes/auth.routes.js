@@ -1,30 +1,47 @@
 import { Router } from 'express';
-import { users } from '../models/users.model.js';
+import bcrypt from 'bcrypt';
+import { pool } from '../config/db.js'; // Importamos la conexión a la base de datos
 import { generateToken } from '../utils/jwt.js';
 
 const router = Router();
 
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
+router.post('/login', async (req, res, next) => {
+  try {
+    const { email, password } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ error: 'Email y password son requeridos' });
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email y password son requeridos' });
+    }
+
+    // 1. Buscamos al usuario por su email directamente en la base de datos
+    const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+    const user = result.rows[0];
+
+    // Si el usuario no existe
+    if (!user) {
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
+
+    // 2. Comparamos la contraseña en texto plano con el hash de la base de datos
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
+      return res.status(401).json({ error: 'Credenciales inválidas' });
+    }
+
+    // 3. Generamos el token (omitiendo la contraseña, por supuesto)
+    const token = await generateToken({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    });
+
+    res.json({ token });
+  } catch (error) {
+    // Si hay un error de conexión u otro problema, lo pasamos al errorHandler
+    next(error);
   }
-
-  const user = users.find((u) => u.email === email && u.password === password);
-
-  if (!user) {
-    return res.status(401).json({ error: 'Credenciales inválidas' });
-  }
-
-  const token = await generateToken({
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role
-  });
-
-  res.json({ token });
 });
 
 export default router;

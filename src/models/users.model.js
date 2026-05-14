@@ -1,13 +1,4 @@
-export const users = [
-  { id: 1, name: "fernando", email: "fernando@example.com", role: "admin", password: "fernando123" },
-  { id: 2, name: "Bob", email: "bob@example.com", role: "user", password: "bob123" },
-  { id: 3, name: "Charlie", email: "charlie@example.com", role: "user", password: "charlie123" },
-  { id: 4, name: "Diana", email: "diana@example.com", role: "user", password: "diana123" },
-  { id: 5, name: "Eve", email: "eve@example.com", role: "guest", password: "eve123" },
-  { id: 6, name: "Frank", email: "frank@example.com", role: "user", password: "frank123" },
-  { id: 7, name: "Grace", email: "grace@example.com", role: "user", password: "grace123" },
-  { id: 8, name: "Henry", email: "henry@example.com", role: "guest", password: "henry123" }
-];
+import { pool } from '../config/db.js';
 
 export const sanitizeUser = (user) => {
   if (!user) return null;
@@ -15,34 +6,47 @@ export const sanitizeUser = (user) => {
   return userWithoutPassword;
 };
 
-export const createUser = (user) => {
-  users.push(user);
-  return sanitizeUser(user);
+export const createUser = async (userData) => {
+  const { name, email, role, password } = userData;
+  const result = await pool.query(
+    'INSERT INTO users (name, email, role, password) VALUES ($1, $2, $3, $4) RETURNING *',
+    [name, email, role, password]
+  );
+  return sanitizeUser(result.rows[0]);
 };
 
-export const getUser = (id) => {
-  const user = users.find((u) => u.id === id);
-  return sanitizeUser(user);
+export const getUser = async (id) => {
+  const result = await pool.query('SELECT * FROM users WHERE id = $1', [id]);
+  return sanitizeUser(result.rows[0]);
 };
 
-export const getAllUsers = () => {
-  return users.map((u) => sanitizeUser(u));
+export const getAllUsers = async () => {
+  const result = await pool.query('SELECT * FROM users');
+  return result.rows.map((u) => sanitizeUser(u));
 };
 
-export const updateUser = (id, userData) => {
-  const index = users.findIndex((u) => u.id === id);
-  if (index === -1) return null;
-  users[index] = { ...users[index], ...userData };
-  return sanitizeUser(users[index]);
+export const updateUser = async (id, userData) => {
+  // Construcción dinámica de la consulta para actualizar solo los campos provistos
+  const keys = Object.keys(userData);
+  if (keys.length === 0) return null;
+
+  const setClause = keys.map((key, index) => `${key} = $${index + 2}`).join(', ');
+  const values = keys.map(key => userData[key]);
+
+  const result = await pool.query(
+    `UPDATE users SET ${setClause} WHERE id = $1 RETURNING *`,
+    [id, ...values]
+  );
+  
+  return sanitizeUser(result.rows[0]);
 };
 
-export const deleteUser = (id) => {
-  const index = users.findIndex((u) => u.id === id);
-  if (index === -1) return null;
-  const deleted = users.splice(index, 1)[0];
-  return sanitizeUser(deleted);
+export const deleteUser = async (id) => {
+  const result = await pool.query('DELETE FROM users WHERE id = $1 RETURNING *', [id]);
+  return sanitizeUser(result.rows[0]);
 };
 
-export const userExists = (id) => {
-  return users.some((u) => u.id === id);
+export const userExists = async (id) => {
+  const result = await pool.query('SELECT 1 FROM users WHERE id = $1', [id]);
+  return result.rowCount > 0;
 };
