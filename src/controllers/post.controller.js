@@ -27,13 +27,15 @@ export const getPostById = async (req, res, next) => {
 
 export const createNewPost = async (req, res, next) => {
   try {
-    const { userId, title, content } = req.body;
+    const { title, content } = req.body;
 
-    if (!userId || !title || !content) {
+    if (!title || !content) {
       return res.status(400).json({ error: "userId, title y content son requeridos" });
     }
 
-    const userIdNum = parseInt(userId, 10);
+    
+    // Eliminamos userId del body y ocupamos el id autenticado
+    const userIdNum = parseInt(req.user.id, 10);
     const exists = await userExists(userIdNum);
     if (!exists) {
       return res.status(404).json({ error: "El autor (Usuario) no existe" });
@@ -59,9 +61,10 @@ export const updateExistingPost = async (req, res, next) => {
     const { title, content } = req.body;
 
     const postExists = await getPost(id);
-    if (!postExists) {
-      return res.status(404).json({ error: "Post no encontrado" });
-    }
+    if (!postExists) return res.status(404).json({ error: "Post no encontrado" });
+
+    //Validamos que el post sea del usuario
+    if(req.user.id !== postExists.userId) res.status(403).json({ error: "El post a modificar no es de su autoria" });
 
     const postData = {};
     if (title) postData.title = title;
@@ -79,9 +82,10 @@ export const deleteExistingPost = async (req, res, next) => {
     const id = parseInt(req.params.id, 10);
 
     const postExists = await getPost(id);
-    if (!postExists) {
-      return res.status(404).json({ error: "Post no encontrado" });
-    }
+    if (!postExists) return res.status(404).json({ error: "Post no encontrado" });
+    
+    //Validamos que el post sea del usuario
+    if(req.user.id !== postExists.userId) res.status(403).json({ error: "El post a modificar no es de su autoria" });
 
     await deletePost(id);
     res.json({ message: "Post eliminado correctamente" });

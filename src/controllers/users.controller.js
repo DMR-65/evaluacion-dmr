@@ -1,6 +1,8 @@
 import bcrypt from 'bcrypt';
 import { getAllUsers, getUser, createUser, updateUser, deleteUser, userExists } from '../models/users.model.js';
 import { getPostsByUserId, deletePostsByUserId } from '../models/post.model.js';
+import { validateEmail } from '../utils/validateEmail.js';
+import { validatePassword } from '../utils/validatePassword.js';
 
 export const getUsers = async (req, res, next) => {
   try {
@@ -31,10 +33,15 @@ export const createNewUser = async (req, res, next) => {
   try {
     // Ahora exigimos password porque la BD lo requiere
     const { name, email, password, role } = req.body;
-
     if (!name || !email || !password) {
       return res.status(400).json({ error: "Nombre, email y contraseña son requeridos" });
     }
+    // Validamos que el correo sea valido
+    if (validateEmail(email)) return res.status(400).json({ error: 'El email ingresado debe ser un mail valido' });
+
+    //Validamos la complegidad de la password
+    const passValid = validatePassword(password)
+    if (!passValid.status) return res.status(400).json({ error: passValid.message });
 
     // Hasheamos la contraseña antes de guardarla
     const saltRounds = 10;
@@ -65,9 +72,18 @@ export const updateExistingUser = async (req, res, next) => {
     const { name, email, password } = req.body;
 
     const exists = await userExists(id);
-    if (!exists) {
-      return res.status(404).json({ error: "Usuario no encontrado" });
-    }
+    if (!exists)  return res.status(404).json({ error: "Usuario no encontrado" });
+
+    //Validamos que el usuario sea de su propiedad
+    if(req.user.id !== exists.id || req.user.role !== 'admin') res.status(403).json({ error: "No tiene permisos para accionar sobre este usuario" });
+
+    // Validamos que el correo sea valido
+    if (validateEmail(email)) return res.status(400).json({ error: 'El email ingresado debe ser un mail valido' });
+
+     //Validamos la complegidad de la password
+    const passValid = validatePassword(password)
+    if (!passValid.status) return res.status(400).json({ error: passValid.message });
+    
 
     const userData = {};
     if (name) userData.name = name;
@@ -91,9 +107,10 @@ export const deleteExistingUser = async (req, res, next) => {
     const id = parseInt(req.params.id, 10);
 
     const exists = await userExists(id);
-    if (!exists) {
-      return res.status(404).json({ error: "Usuario no encontrado" });
-    }
+    if (!exists) return res.status(404).json({ error: "Usuario no encontrado" });
+    
+    //Validamos que el usuario sea de su propiedad
+    if(req.user.id !== exists.id || req.user.role !== 'admin') res.status(403).json({ error: "No tiene permisos para accionar sobre este usuario" });
 
     await deletePostsByUserId(id);
     await deleteUser(id);

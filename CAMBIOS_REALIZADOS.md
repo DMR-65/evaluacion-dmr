@@ -1,0 +1,13 @@
+# Solución de Vulnerabilidades y Mejoras Implementadas
+
+## Tabla de Correcciones
+
+| No. | Vulnerabilidad | Solución Aplicada | Referencia al Código |
+|-----|----------------|-------------------|----------------------|
+| 1 | **Falta de Validación de Formato de Email** | Se creó una función para validar que el email tenga un formato correcto y se aplicó en `updateExistingUser`. | [validateEmail.js](/user_api/src/utils/validateEmail.js)<br>[users.controller.js:82](/user_api/src/controllers/users.controller.js#L82) |
+| 2 | **Contraseñas Débiles** | Se creó una función para validar complejidad y seguridad de contraseña. La validación fue aplicada en `createNewUser` y `updateExistingUser`. | [validatePassword.js](/user_api/src/utils/validatePassword.js)<br>[users.controller.js:43](/user_api/src/controllers/users.controller.js#L43)<br>[users.controller.js:84](/user_api/src/controllers/users.controller.js#L84) |
+| 3 | **Falta de Autorización en Posts** | Se validó que el post pertenezca al usuario autenticado antes de permitir edición o eliminación. | [post.controller.js:67](/user_api/src/controllers/post.controller.js#L67)<br>[post.controller.js:88](/user_api/src/controllers/post.controller.js#L88) |
+| 4 | **Falta de Autorización en Usuarios** | Se restringió la modificación y eliminación de usuarios para que solo el propietario de la cuenta o un administrador puedan realizar estas acciones. | [users.controller.js:78](/user_api/src/controllers/users.controller.js#L78)<br>[users.controller.js:113](./user_api/src/controllers/users.controller.js#L113) |
+| 5 | **Inconsistencia en `userId` de Posts** | Se eliminó la lectura del `userId` desde el body y ahora se obtiene directamente desde el token autenticado. | [post.controller.js:38](/user_api/src/controllers/post.controller.js#L38) |
+| 6 | **Sanitización Desactivada** | Se habilitó nuevamente el middleware de sanitización y se corrigió el middleware para evitar errores de reasignación en versiones recientes de Express. | [app.js:29](/user_api/src/app.js#L29)<br>[sanitize.js](/user_api/src/middlewares/sanitize.js) |
+| 7 | **Fuga de Información en Login (Timing Attack)** | Se corrigió la diferencia de tiempos de respuesta creando un hash dummy para ejecutar siempre `bcrypt.compare`, independientemente de si el usuario existe o no. También se reorganizó el flujo de validación para asegurar que la comparación ocurra siempre. | [auth.routes.js:9](/user_api/src/routes/auth.routes.js#L9)<br>[auth.routes.js:28](/user_api/src/routes/auth.routes.js#L28) |

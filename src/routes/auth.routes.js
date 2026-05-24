@@ -5,6 +5,9 @@ import { generateToken } from '../utils/jwt.js';
 
 const router = Router();
 
+// Hash dummy para evitar user enumeration timing attacks
+const DUMMY_HASH = '$2b$10$8wJ9Qx8H5l8Y7K3QmK5xEu0dS7YFJ8W1hQx2P5rK8mL4cN7vB2u3G';
+
 router.post('/login', async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -17,13 +20,17 @@ router.post('/login', async (req, res, next) => {
     const result = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
     const user = result.rows[0];
 
+    // Usar hash real o dummy
+    const passwordHash = user?.password || DUMMY_HASH;
+
+    //Cambiamos la posicion de ejecucion del comparador para que este ocurra siempre
+    // 2. Comparamos la contraseña en texto plano con el hash de la base de datos
+    const isMatch = await bcrypt.compare(password, user.password);
+
     // Si el usuario no existe
     if (!user) {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
-
-    // 2. Comparamos la contraseña en texto plano con el hash de la base de datos
-    const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
       return res.status(401).json({ error: 'Credenciales inválidas' });
